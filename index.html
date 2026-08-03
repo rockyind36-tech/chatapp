@@ -2,54 +2,292 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Online Chat</title>
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <meta
+    name="description"
+    content="Simple real-time online chat application"
+  />
+
+  <title>ChatApp - Online Chat</title>
+
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <div id="auth-section" class="auth-box">
-    <h1>Online Chat</h1>
 
-    <input id="name" type="text" placeholder="Your name" />
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Password" />
+  <!-- LOGIN / SIGNUP SECTION -->
 
-    <button id="signup-btn">Signup</button>
-    <button id="login-btn">Login</button>
+  <section
+    id="auth-section"
+    class="auth-section"
+  >
+    <div class="auth-card">
 
-    <p id="auth-message"></p>
-  </div>
-
-  <div id="chat-section" class="chat-layout hidden">
-    <aside class="sidebar">
-      <div class="profile-bar">
-        <span id="current-user"></span>
-        <button id="logout-btn">Logout</button>
+      <div class="auth-logo">
+        <div class="logo-circle">C</div>
+        <span>ChatApp</span>
       </div>
 
-      <h3>Users</h3>
-      <div id="users-list"></div>
+      <h1>Welcome Back</h1>
+
+      <p class="auth-subtitle">
+        Login to continue chatting
+      </p>
+
+      <input
+        id="name"
+        type="text"
+        placeholder="Your name"
+        autocomplete="name"
+      />
+
+      <input
+        id="email"
+        type="email"
+        placeholder="Email address"
+        autocomplete="email"
+      />
+
+      <input
+        id="password"
+        type="password"
+        placeholder="Password"
+        autocomplete="current-password"
+      />
+
+      <button
+        id="login-btn"
+        class="primary-btn"
+        type="button"
+      >
+        Login
+      </button>
+
+      <button
+        id="signup-btn"
+        class="secondary-btn"
+        type="button"
+      >
+        Create Account
+      </button>
+
+      <p
+        id="auth-message"
+        class="auth-message"
+      ></p>
+
+    </div>
+  </section>
+
+
+  <!-- CHAT DASHBOARD SECTION -->
+
+  <section
+    id="chat-section"
+    class="chat-layout hidden"
+  >
+
+    <!-- LEFT SIDEBAR -->
+
+    <aside class="sidebar">
+
+      <div class="app-logo">
+        <div class="logo-circle">C</div>
+        <span>ChatApp</span>
+      </div>
+
+
+      <!-- CURRENT USER PROFILE -->
+
+      <div class="my-profile">
+
+        <div
+          class="avatar"
+          id="my-avatar"
+        >
+          U
+        </div>
+
+        <div class="profile-info">
+          <strong id="current-user">
+            User
+          </strong>
+
+          <small>
+            Online
+          </small>
+        </div>
+
+        <button
+          id="logout-btn"
+          class="logout-icon"
+          type="button"
+          title="Logout"
+        >
+          ↪
+        </button>
+
+      </div>
+
+
+      <!-- SEARCH USERS -->
+
+      <div class="search-area">
+
+        <label
+          for="user-search"
+          class="search-label"
+        >
+          Find people
+        </label>
+
+        <input
+          id="user-search"
+          type="search"
+          placeholder="Search users..."
+          autocomplete="off"
+        />
+
+      </div>
+
+
+      <div class="users-title-row">
+        <h3 class="users-heading">
+          People
+        </h3>
+
+        <span
+          id="users-count"
+          class="users-count"
+        >
+          0
+        </span>
+      </div>
+
+
+      <div
+        id="users-list"
+        class="users-list"
+      >
+        <p class="loading-text">
+          Loading users...
+        </p>
+      </div>
+
     </aside>
 
+
+    <!-- RIGHT CHAT AREA -->
+
     <main class="chat-area">
-      <header id="chat-header">
-        Select a user to chat
+
+      <!-- CHAT HEADER -->
+
+      <header class="chat-header">
+
+        <div class="chat-user-info">
+
+          <div
+            class="avatar small-avatar"
+            id="chat-avatar"
+          >
+            ?
+          </div>
+
+          <div class="chat-user-details">
+
+            <strong id="chat-title">
+              Select a user
+            </strong>
+
+            <small id="chat-status">
+              Choose someone to start chatting
+            </small>
+
+          </div>
+
+        </div>
+
+
+        <div class="chat-actions">
+
+          <button
+            id="delete-chat-btn"
+            class="delete-btn hidden"
+            type="button"
+          >
+            Delete Chat
+          </button>
+
+        </div>
+
       </header>
 
-      <div id="messages"></div>
 
-      <form id="message-form">
+      <!-- MESSAGES -->
+
+      <div
+        id="messages"
+        class="messages"
+      >
+
+        <div class="empty-chat">
+
+          <div class="empty-icon">
+            💬
+          </div>
+
+          <h2>
+            Start a conversation
+          </h2>
+
+          <p>
+            Search and select a user from the left side.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- SEND MESSAGE -->
+
+      <form
+        id="message-form"
+        class="message-form"
+      >
+
         <input
           id="message-input"
           type="text"
-          placeholder="Type a message..."
+          placeholder="Write a message..."
           autocomplete="off"
+          maxlength="2000"
         />
-        <button type="submit">Send</button>
-      </form>
-    </main>
-  </div>
 
-  <script type="module" src="app.js"></script>
+        <button
+          type="submit"
+          class="send-btn"
+        >
+          Send
+        </button>
+
+      </form>
+
+    </main>
+
+  </section>
+
+
+  <script
+    type="module"
+    src="app.js"
+  ></script>
+
 </body>
 </html>
