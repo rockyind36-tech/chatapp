@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
 
@@ -8,41 +9,42 @@
     content="width=device-width, initial-scale=1.0"
   />
 
-  <meta
-    name="description"
-    content="Simple real-time online chat application"
+  <title>ChatApp</title>
+
+  <link
+    rel="stylesheet"
+    href="style.css"
   />
-
-  <title>ChatApp - Online Chat</title>
-
-  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
 
-  <!-- LOGIN / SIGNUP SECTION -->
+  <!-- AUTH SECTION -->
 
-  <section
+  <main
     id="auth-section"
-    class="auth-section">
+    class="auth-section"
+  >
 
     <div class="auth-card">
 
       <div class="auth-logo">
-        <div class="logo-circle">PW</div>
-        <span>Learnng App</span>
+        💬
       </div>
 
-      <h1>Welcome Back</h1>
+      <h1>
+        ChatApp
+      </h1>
 
       <p class="auth-subtitle">
-        Login to continue chatting
+        Connect with your people
       </p>
+
 
       <input
         id="name"
         type="text"
-        placeholder="Your name"
+        placeholder="Full name"
         autocomplete="name"
       />
 
@@ -60,21 +62,24 @@
         autocomplete="current-password"
       />
 
-      <button
-        id="login-btn"
-        class="primary-btn"
-        type="button">
-        
-        Login
-      </button>
+      <div class="auth-buttons">
 
-      <button
-        id="signup-btn"
-        class="secondary-btn"
-        type="button"
-      >
-        Create Account
-      </button>
+        <button
+          id="login-btn"
+          type="button"
+        >
+          Login
+        </button>
+
+        <button
+          id="signup-btn"
+          type="button"
+          class="secondary-btn"
+        >
+          Create Account
+        </button>
+
+      </div>
 
       <p
         id="auth-message"
@@ -82,303 +87,400 @@
       ></p>
 
     </div>
-  </section>
+
+  </main>
 
 
-  <!-- CHAT DASHBOARD SECTION -->
+  <!-- CHAT SECTION -->
 
-  <section
+  <main
     id="chat-section"
-    class="chat-layout hidden"
+    class="chat-section hidden"
   >
 
-    <!-- LEFT SIDEBAR -->
-
-    <aside class="sidebar">
-
-      <div class="app-logo">
-        <div class="logo-circle">A.S</div>
-        <span>ChatApp</span>
-      </div>
+    <div class="chat-layout">
 
 
-      <!-- CURRENT USER PROFILE -->
+      <!-- LEFT SIDEBAR -->
 
-      <div class="my-profile">
+      <aside class="sidebar">
 
-        <div class="avatar avatar-wrapper">
-          <span id="my-avatar">U</span>
-          <span id="my-online-dot"
-          class="online-dot"></span>
+        <div class="sidebar-header">
+
+          <div class="my-profile">
+
+            <div class="avatar avatar-wrapper">
+
+              <span id="my-avatar">
+                U
+              </span>
+
+              <span
+                id="my-online-dot"
+                class="online-dot"
+              ></span>
+
+            </div>
+
+            <div class="my-profile-text">
+
+              <strong id="current-user">
+                User
+              </strong>
+
+              <small>
+                My account
+              </small>
+
+            </div>
+
+          </div>
+
+          <button
+            id="logout-btn"
+            class="logout-btn"
+            type="button"
+            title="Logout"
+          >
+            Logout
+          </button>
 
         </div>
 
 
-        <div class="profile-info">
-          <strong id="current-user">
-            User
+        <div class="search-box">
+
+          <span class="search-icon">
+            🔍
+          </span>
+
+          <input
+            id="user-search"
+            type="search"
+            placeholder="Search name, email or number"
+            autocomplete="off"
+          />
+
+        </div>
+
+
+        <div class="users-heading">
+
+          <strong>
+            Contacts
           </strong>
 
-          <small>
-            Online
-          </small>
-        </div>
-
-        <button
-          id="logout-btn"
-          class="logout-icon"
-          type="button"
-          title="Logout"
-        >
-          ↪
-        </button>
-
-      </div>
-
-
-      <!-- SEARCH USERS -->
-
-      <div class="search-area">
-
-        <label
-          for="user-search"
-          class="search-label"
-        >
-          Find people 
-        </label>
-
-        <input
-          id="user-search"
-          type="search"
-          placeholder="Search users..."
-          autocomplete="off"
-        />
-
-      </div>
-
-
-      <div class="users-title-row">
-        <h3 class="users-heading">
-          People
-        </h3>
-
-        <span
-          id="users-count"
-          class="users-count"
-        >
-          0
-        </span>
-      </div>
-
-
-      <div
-        id="users-list"
-        class="users-list">
-
-        <p class="loading-text">
-          Loading users...
-        </p>
-      </div>
-
-    </aside>
-
-
-    <!-- RIGHT CHAT AREA -->
-
-    <main class="chat-area">
-
-      <!-- CHAT HEADER -->
-
-      <header class="chat-header">
-
-        <div class="chat-user-info">
-
-          <div
-            class="avatar small-avatar"
-            id="chat-avatar"
-          >
-            ?
-          </div>
-
-          <div class="chat-user-details">
-
-            <strong id="chat-title">
-              Select a user
-            </strong>
-
-            <small id="chat-status">
-              Choose someone to start chatting
-            </small>
-
-            <small
-              id="chat-last-seen"
-              class="chat-last-seen hidden">
-              typing...
-            </small>
-
-          </div>
+          <span id="users-count">
+            0
+          </span>
 
         </div>
 
 
-        <div class="chat-actions">
+        <div
+          id="users-list"
+          class="users-list"
+        >
 
-          <button
-            id="audio-call-btn"
-            class="audio-call-btn"
-            type="button"
-            title="Audio Call"
-            disabled
-          >
-            📞
-          </button>
-
-          <button
-            id="video-call-btn"
-            class="video-call-btn"
-            type="button"
-            title="Video Call"
-            disabled
-          >
-            📹
-          </button>  
-
-
-          <button
-            id="chat-menu-btn"
-            class="header-icon-btn"
-            type="button"
-            title="Chat Menu"
-            disabled
-          >
-            ⋮
-          </button>
-
-          <div
-            id="chat-menu"
-            class="chat-menu hidden"
-          >
-            <button
-             id="new-group-btn"
-             type="button"
-           >
-              New group
-            </button>
-
-            <button
-              id="view-contact-btn"
-              type="button"
-            >
-              View contact
-            </button>
-
-            <button
-              id="chat-theme-btn"
-              type="button"
-           >
-              Chat theme
-            </button>
-
-            <div class="menu-divider"></div>
-
-            <button
-              id="more-menu-btn"
-              type="button"
-            >
-             More
-            </button>
-
-            <div
-              id="more-menu"
-              class="more-menu hidden"
-            >
-              <button
-               id="report-user-btn"
-               type="button"
-              >
-                Report
-              </button>
-
-              <button
-                id="block-user-btn"
-                type="button"
-                >
-                Block
-              </button>
-
-              <button
-                id="clear-chat-btn"
-                type="button"
-               >
-               Clear chat
-              </button>
-            </div>
-         </div>
-
-        </div>
-
-      </header>
-
-
-
-
-          
-
-
-      <!-- MESSAGES -->
-
-      <div
-        id="messages"
-        class="messages"
-      >
-
-        <div class="empty-chat">
-
-          <div class="empty-icon">
-            💬
-          </div>
-
-          <h2>
-            Start a conversation
-          </h2>
-
-          <p>
-            Search and select a user from the left side.
+          <p class="no-user">
+            No users found
           </p>
 
         </div>
 
+      </aside>
+
+
+      <!-- RIGHT CHAT AREA -->
+
+      <section class="chat-area">
+
+
+        <!-- CHAT HEADER -->
+
+        <header class="chat-header">
+
+          <div class="chat-user-info">
+
+            <div
+              id="chat-avatar"
+              class="avatar small-avatar"
+            >
+              ?
+            </div>
+
+            <div class="chat-user-details">
+
+              <strong id="chat-title">
+                Select a user
+              </strong>
+
+              <small id="chat-status">
+                Choose someone to start chatting
+              </small>
+
+              <small
+                id="chat-last-seen"
+                class="chat-last-seen"
+              ></small>
+
+              <small
+                id="typing-indicator"
+                class="typing-indicator hidden"
+              >
+                typing...
+              </small>
+
+            </div>
+
+          </div>
+
+
+          <!-- HEADER ACTIONS -->
+
+          <div class="chat-actions">
+
+            <button
+              id="audio-call-btn"
+              class="header-icon-btn"
+              type="button"
+              title="Audio call"
+              disabled
+            >
+              📞
+            </button>
+
+            <button
+              id="video-call-btn"
+              class="header-icon-btn"
+              type="button"
+              title="Video call"
+              disabled
+            >
+              📹
+            </button>
+
+            <button
+              id="chat-menu-btn"
+              class="header-icon-btn"
+              type="button"
+              title="Chat menu"
+              disabled
+            >
+              ⋮
+            </button>
+
+
+            <!-- MAIN CHAT MENU -->
+
+            <div
+              id="chat-menu"
+              class="chat-menu hidden"
+            >
+
+              <button
+                id="new-group-btn"
+                type="button"
+              >
+                New group
+              </button>
+
+              <button
+                id="view-contact-btn"
+                type="button"
+              >
+                View contact
+              </button>
+
+              <button
+                id="chat-theme-btn"
+                type="button"
+              >
+                Chat theme
+              </button>
+
+              <div class="menu-divider"></div>
+
+              <button
+                id="more-menu-btn"
+                type="button"
+              >
+                More
+              </button>
+
+
+              <!-- MORE SUBMENU -->
+
+              <div
+                id="more-menu"
+                class="more-menu hidden"
+              >
+
+                <button
+                  id="report-user-btn"
+                  type="button"
+                >
+                  Report
+                </button>
+
+                <button
+                  id="block-user-btn"
+                  type="button"
+                >
+                  Block
+                </button>
+
+                <button
+                  id="clear-chat-btn"
+                  type="button"
+                >
+                  Clear chat
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </header>
+
+
+        <!-- MESSAGES -->
+
+        <div
+          id="messages"
+          class="messages"
+        >
+
+          <div class="empty-chat">
+
+            <div class="empty-icon">
+              💬
+            </div>
+
+            <h2>
+              Start a conversation
+            </h2>
+
+            <p>
+              Search and select a user from the left side.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <!-- MESSAGE COMPOSER -->
+
+        <form
+          id="message-form"
+          class="message-form"
+        >
+
+          <input
+            id="message-input"
+            type="text"
+            placeholder="Type a message..."
+            autocomplete="off"
+          />
+
+          <button
+            type="submit"
+            class="send-btn"
+            title="Send message"
+          >
+            ➤
+          </button>
+
+        </form>
+
+      </section>
+
+    </div>
+
+  </main>
+
+
+  <!-- CALL MODAL -->
+
+  <div
+    id="call-modal"
+    class="call-modal hidden"
+  >
+
+    <div class="call-card">
+
+      <div class="call-card-header">
+
+        <h3>
+          Call
+        </h3>
+
+        <span>
+          Secure connection
+        </span>
+
       </div>
 
 
-      <!-- SEND MESSAGE -->
+      <div class="video-stage">
 
-      <form
-        id="message-form"
-        class="message-form"
-      >
+        <video
+          id="remote-video"
+          autoplay
+          playsinline
+        ></video>
 
-        <input
-          id="message-input"
-          type="text"
-          placeholder="Write a message..."
-          autocomplete="off"
-          maxlength="2000"
-          aria-label="Type your message..."
-        />
+        <video
+          id="local-video"
+          autoplay
+          muted
+          playsinline
+        ></video>
+
+        <div
+          id="audio-call-placeholder"
+          class="audio-call-placeholder"
+        >
+          📞
+        </div>
+
+      </div>
+
+
+      <div class="call-controls">
 
         <button
-          type="submit"
-          class="send-btn"
+          id="accept-call-btn"
+          type="button"
+          class="accept-call-btn"
         >
-          Send
+          Accept
         </button>
 
-      </form>
+        <button
+          id="reject-call-btn"
+          type="button"
+          class="reject-call-btn"
+        >
+          Reject
+        </button>
 
-    </main>
+        <button
+          id="end-call-btn"
+          type="button"
+          class="end-call-btn"
+        >
+          End call
+        </button>
 
-  </section>
+      </div>
+
+    </div>
+
+  </div>
 
 
   <script
@@ -387,4 +489,5 @@
   ></script>
 
 </body>
+
 </html>
