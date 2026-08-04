@@ -33,8 +33,8 @@ button {
   padding: 20px;
   background: linear-gradient(
     135deg,
-    #2563eb,
-    #7c3aed
+    #4d32c7,
+    #701b7d
   );
 }
 
@@ -100,7 +100,15 @@ button {
 
 .primary-btn:hover {
   background: #1d4ed8;
+  transform:translateY(-4px);
+  transition:all .25s ease;
 }
+
+.primary-btn:active{
+    transform:scale(.96);
+}
+
+
 
 .secondary-btn {
   background: #e8eefc;
@@ -109,7 +117,15 @@ button {
 
 .secondary-btn:hover {
   background: #dbe7ff;
+  transform:translateY(-4px);
+  transition:all .25s ease;
 }
+
+.secondary-btn:active{
+    transform:scale(.96);
+}
+
+
 
 .auth-message {
   min-height: 20px;
@@ -220,6 +236,10 @@ button {
 
 .logout-icon:hover {
   background: #b91c1c;
+}
+
+.logout-icon:active{
+    transform:scale(.96);
 }
 
 
@@ -359,6 +379,11 @@ button {
   background: #fecaca;
 }
 
+.delete-btn:active{
+    transform:scale(.96);
+}
+
+
 
 /* MESSAGES */
 
@@ -456,6 +481,9 @@ button {
   background: #1d4ed8;
 }
 
+.send-btn:active{
+    transform:scale(.96);
+}
 
 /* MOBILE DESIGN */
 
