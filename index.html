@@ -211,8 +211,8 @@
             </small>
 
             <small
-              id="typing-indicator"
-              class="typing-indicator hidden">
+              id="chat-last-seen"
+              class="chat-last-seen hidden">
               typing...
             </small>
 
@@ -224,16 +224,105 @@
         <div class="chat-actions">
 
           <button
-            id="delete-chat-btn"
-            class="delete-btn hidden"
+            id="audio-call-btn"
+            class="audio-call-btn"
             type="button"
+            title="Audio Call"
+            disabled
           >
-            Delete Chat
+            📞
           </button>
+
+          <button
+            id="video-call-btn"
+            class="video-call-btn"
+            type="button"
+            title="Video Call"
+            disabled
+          >
+            📹
+          </button>  
+
+
+          <button
+            id="chat-menu-btn"
+            class="header-icon-btn"
+            type="button"
+            title="Chat Menu"
+            disabled
+          >
+            ⋮
+          </button>
+
+          <div
+            id="chat-menu"
+            class="chat-menu hidden"
+          >
+            <button
+             id="new-group-btn"
+             type="button"
+           >
+              New group
+            </button>
+
+            <button
+              id="view-contact-btn"
+              type="button"
+            >
+              View contact
+            </button>
+
+            <button
+              id="chat-theme-btn"
+              type="button"
+           >
+              Chat theme
+            </button>
+
+            <div class="menu-divider"></div>
+
+            <button
+              id="more-menu-btn"
+              type="button"
+            >
+             More
+            </button>
+
+            <div
+              id="more-menu"
+              class="more-menu hidden"
+            >
+              <button
+               id="report-user-btn"
+               type="button"
+              >
+                Report
+              </button>
+
+              <button
+                id="block-user-btn"
+                type="button"
+                >
+                Block
+              </button>
+
+              <button
+                id="clear-chat-btn"
+                type="button"
+               >
+               Clear chat
+              </button>
+            </div>
+         </div>
 
         </div>
 
       </header>
+
+
+
+
+          
 
 
       <!-- MESSAGES -->
