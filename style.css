@@ -999,3 +999,119 @@ body {
     width: 180px;
   }
 }
+
+
+/* CALL MODAL */
+
+.call-modal {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.75);
+}
+
+.call-card {
+  position: relative;
+  width: min(720px, 100%);
+  overflow: hidden;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.call-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.call-card-header h3 {
+  margin: 0;
+  color: #172033;
+}
+
+.call-card-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.video-stage {
+  position: relative;
+  display: flex;
+  min-height: 360px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+#remote-video {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  background: #0f172a;
+  object-fit: contain;
+}
+
+#local-video {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2;
+  width: 150px;
+  max-height: 180px;
+  border: 2px solid #ffffff;
+  border-radius: 10px;
+  background: #1e293b;
+  object-fit: cover;
+}
+
+.audio-call-placeholder {
+  color: white;
+  font-size: 42px;
+  text-align: center;
+}
+
+.call-controls {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.call-controls button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 700;
+}
+
+.accept-call-btn {
+  background: #16a34a;
+}
+
+.reject-call-btn,
+.end-call-btn {
+  background: #dc2626;
+}
+
+@media (max-width: 600px) {
+  .call-card {
+    width: 100%;
+  }
+
+  .video-stage {
+    min-height: 300px;
+  }
+
+  #local-video {
+    width: 100px;
+  }
+}
