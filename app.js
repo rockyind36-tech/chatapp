@@ -18,6 +18,7 @@ import {
   updateDoc,
   getDoc,
   getDocs,
+  deleteDoc,
   doc,
   query,
   where,
@@ -25,8 +26,7 @@ import {
   limit,
   onSnapshot,
   serverTimestamp,
-  writeBatch,
-  deleteDoc
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 import {
@@ -34,7 +34,7 @@ import {
 } from "./firebase-config.js";
 
 
-/* FIREBASE INITIALIZE */
+/* FIREBASE */
 
 const app =
   initializeApp(firebaseConfig);
@@ -46,20 +46,26 @@ const db =
   getFirestore(app);
 
 
-/* APP STATE */
+/* STATE */
 
 let currentUser = null;
 let currentUserData = null;
 let selectedUser = null;
 
+let allUsers = [];
+
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
 let unsubscribeSelectedUser = null;
-
-let allUsers = [];
+let unsubscribeTyping = null;
+let unsubscribeIncomingCalls = null;
 
 let typingTimer = null;
 let isTyping = false;
+
+let peerConnection = null;
+let localStream = null;
+let activeCallId = null;
 
 
 /* AUTH ELEMENTS */
@@ -92,7 +98,7 @@ const logoutBtn =
   document.querySelector("#logout-btn");
 
 
-/* PROFILE ELEMENTS */
+/* PROFILE */
 
 const currentUserElement =
   document.querySelector("#current-user");
@@ -104,7 +110,7 @@ const myOnlineDot =
   document.querySelector("#my-online-dot");
 
 
-/* USER ELEMENTS */
+/* USERS */
 
 const userSearchInput =
   document.querySelector("#user-search");
@@ -116,7 +122,7 @@ const usersCount =
   document.querySelector("#users-count");
 
 
-/* CHAT ELEMENTS */
+/* CHAT HEADER */
 
 const chatTitle =
   document.querySelector("#chat-title");
@@ -124,14 +130,53 @@ const chatTitle =
 const chatStatus =
   document.querySelector("#chat-status");
 
+const chatLastSeen =
+  document.querySelector("#chat-last-seen");
+
 const typingIndicator =
   document.querySelector("#typing-indicator");
 
 const chatAvatar =
   document.querySelector("#chat-avatar");
 
-const deleteChatBtn =
-  document.querySelector("#delete-chat-btn");
+const audioCallBtn =
+  document.querySelector("#audio-call-btn");
+
+const videoCallBtn =
+  document.querySelector("#video-call-btn");
+
+const chatMenuBtn =
+  document.querySelector("#chat-menu-btn");
+
+const chatMenu =
+  document.querySelector("#chat-menu");
+
+const moreMenuBtn =
+  document.querySelector("#more-menu-btn");
+
+const moreMenu =
+  document.querySelector("#more-menu");
+
+const newGroupBtn =
+  document.querySelector("#new-group-btn");
+
+const viewContactBtn =
+  document.querySelector("#view-contact-btn");
+
+const chatThemeBtn =
+  document.querySelector("#chat-theme-btn");
+
+const reportUserBtn =
+  document.querySelector("#report-user-btn");
+
+const blockUserBtn =
+  document.querySelector("#block-user-btn");
+
+const clearChatBtn =
+  document.querySelector("#clear-chat-btn");
+
+
+/* MESSAGES */
 
 const messagesElement =
   document.querySelector("#messages");
@@ -143,10 +188,109 @@ const messageInput =
   document.querySelector("#message-input");
 
 
-/* SAFE ELEMENT CHECK */
+/* OPTIONAL CALL ELEMENTS */
 
-function elementExists(element) {
+const callModal =
+  document.querySelector("#call-modal");
+
+const localVideo =
+  document.querySelector("#local-video");
+
+const remoteVideo =
+  document.querySelector("#remote-video");
+
+const endCallBtn =
+  document.querySelector("#end-call-btn");
+
+const audioCallPlaceholder =
+  document.querySelector("#audio-call-placeholder");
+
+const acceptCallBtn =
+  document.querySelector("#accept-call-btn");
+
+const rejectCallBtn =
+  document.querySelector("#reject-call-btn");
+
+
+/* HELPERS */
+
+function has(element) {
   return element !== null;
+}
+
+function getInitial(text) {
+  return (
+    String(text || "")
+      .trim()
+      .charAt(0)
+      .toUpperCase() || "U"
+  );
+}
+
+function escapeHtml(text) {
+  const div =
+    document.createElement("div");
+
+  div.textContent =
+    String(text || "");
+
+  return div.innerHTML;
+}
+
+function getChatId(uid1, uid2) {
+  return [uid1, uid2]
+    .sort()
+    .join("_");
+}
+
+function getCallId(uid1, uid2) {
+  return [uid1, uid2]
+    .sort()
+    .join("_");
+}
+
+function formatDate(timestamp) {
+  if (!timestamp || !timestamp.toDate) {
+    return "";
+  }
+
+  return timestamp.toDate().toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }
+  );
+}
+
+function formatTime(timestamp) {
+  if (!timestamp || !timestamp.toDate) {
+    return "";
+  }
+
+  return timestamp.toDate().toLocaleTimeString(
+    "en-IN",
+    {
+      hour: "2-digit",
+      minute: "2-digit"
+    }
+  );
+}
+
+function formatLastSeen(timestamp) {
+  if (!timestamp || !timestamp.toDate) {
+    return "Last seen unavailable";
+  }
+
+  return `Last seen ${formatDate(timestamp)} at ${formatTime(timestamp)}`;
+}
+
+function setAuthMessage(message) {
+  if (has(authMessage)) {
+    authMessage.textContent =
+      message || "";
+  }
 }
 
 
@@ -165,22 +309,25 @@ signupBtn.addEventListener(
       passwordInput.value;
 
     if (!name || !email || !password) {
-      authMessage.textContent =
-        "All fields required";
+      setAuthMessage(
+        "All fields required"
+      );
 
       return;
     }
 
     if (password.length < 6) {
-      authMessage.textContent =
-        "Password kam se kam 6 characters ka hona chahiye";
+      setAuthMessage(
+        "Password kam se kam 6 characters ka hona chahiye"
+      );
 
       return;
     }
 
     try {
       signupBtn.disabled = true;
-      signupBtn.textContent = "Creating...";
+      signupBtn.textContent =
+        "Creating...";
 
       const result =
         await createUserWithEmailAndPassword(
@@ -195,14 +342,16 @@ signupBtn.addEventListener(
           uid: result.user.uid,
           name,
           email: email.toLowerCase(),
+          phone: "",
           isOnline: true,
           lastSeen: serverTimestamp(),
           createdAt: serverTimestamp()
         }
       );
 
-      authMessage.textContent =
-        "Signup successful";
+      setAuthMessage(
+        "Signup successful"
+      );
 
       nameInput.value = "";
       emailInput.value = "";
@@ -213,11 +362,13 @@ signupBtn.addEventListener(
         error
       );
 
-      authMessage.textContent =
-        getFriendlyError(error);
+      setAuthMessage(
+        getFriendlyError(error)
+      );
     } finally {
       signupBtn.disabled = false;
-      signupBtn.textContent = "Create Account";
+      signupBtn.textContent =
+        "Create Account";
     }
   }
 );
@@ -235,15 +386,17 @@ loginBtn.addEventListener(
       passwordInput.value;
 
     if (!email || !password) {
-      authMessage.textContent =
-        "Email aur password enter karo";
+      setAuthMessage(
+        "Email aur password enter karo"
+      );
 
       return;
     }
 
     try {
       loginBtn.disabled = true;
-      loginBtn.textContent = "Logging in...";
+      loginBtn.textContent =
+        "Logging in...";
 
       await signInWithEmailAndPassword(
         auth,
@@ -251,18 +404,20 @@ loginBtn.addEventListener(
         password
       );
 
-      authMessage.textContent = "";
+      setAuthMessage("");
     } catch (error) {
       console.error(
         "Login error:",
         error
       );
 
-      authMessage.textContent =
-        getFriendlyError(error);
+      setAuthMessage(
+        getFriendlyError(error)
+      );
     } finally {
       loginBtn.disabled = false;
-      loginBtn.textContent = "Login";
+      loginBtn.textContent =
+        "Login";
     }
   }
 );
@@ -273,68 +428,74 @@ loginBtn.addEventListener(
 onAuthStateChanged(
   auth,
   async (user) => {
-    if (user) {
-      currentUser = user;
-
-      try {
-        const userSnapshot =
-          await getDoc(
-            doc(db, "users", user.uid)
-          );
-
-        currentUserData =
-          userSnapshot.exists()
-            ? userSnapshot.data()
-            : {};
-
-        const userName =
-          currentUserData.name ||
-          user.displayName ||
-          user.email ||
-          "User";
-
-        currentUserElement.textContent =
-          userName;
-
-        myAvatar.textContent =
-          getInitial(userName);
-
-        if (elementExists(myOnlineDot)) {
-          myOnlineDot.classList.add(
-            "online"
-          );
-        }
-
-        await setUserOnline(true);
-
-        authSection.classList.add(
-          "hidden"
-        );
-
-        chatSection.classList.remove(
-          "hidden"
-        );
-
-        resetChatScreen();
-        loadUsers();
-      } catch (error) {
-        console.error(
-          "Profile loading error:",
-          error
-        );
-
-        authMessage.textContent =
-          "Profile load nahi ho saka";
-      }
-    } else {
-      await cleanUserState();
-
+    if (!user) {
+      await cleanUp();
       authSection.classList.remove(
         "hidden"
       );
-
       chatSection.classList.add(
         "hidden"
+      );
+      return;
+    }
+
+    currentUser =
+      user;
+
+    try {
+      const profileSnapshot =
+        await getDoc(
+          doc(db, "users", user.uid)
+        );
+
+      currentUserData =
+        profileSnapshot.exists()
+          ? profileSnapshot.data()
+          : {
+              uid: user.uid,
+              name: user.email,
+              email: user.email
+            };
+
+      const name =
+        currentUserData.name ||
+        user.displayName ||
+        user.email ||
+        "User";
+
+      currentUserElement.textContent =
+        name;
+
+      myAvatar.textContent =
+        getInitial(name);
+
+      if (has(myOnlineDot)) {
+        myOnlineDot.classList.add(
+          "online"
+        );
+      }
+
+      await setUserPresence(true);
+
+      authSection.classList.add(
+        "hidden"
+      );
+
+      chatSection.classList.remove(
+        "hidden"
+      );
+
+      resetChatScreen();
+      loadUsers();
+      listenForIncomingCalls();
+    } catch (error) {
+      console.error(
+        "Auth profile error:",
+        error
+      );
+
+      setAuthMessage(
+        "Profile load nahi ho saka"
       );
     }
   }
@@ -347,7 +508,7 @@ logoutBtn.addEventListener(
   "click",
   async () => {
     try {
-      await setUserOnline(false);
+      await setUserPresence(false);
       await signOut(auth);
     } catch (error) {
       console.error(
@@ -359,24 +520,27 @@ logoutBtn.addEventListener(
 );
 
 
-/* USER ONLINE STATUS */
+/* PRESENCE */
 
-async function setUserOnline(isOnline) {
+async function setUserPresence(isOnline) {
   if (!currentUser) {
     return;
   }
 
   try {
-    await updateDoc(
+    await setDoc(
       doc(db, "users", currentUser.uid),
       {
         isOnline,
         lastSeen: serverTimestamp()
+      },
+      {
+        merge: true
       }
     );
   } catch (error) {
     console.error(
-      "Online status error:",
+      "Presence error:",
       error
     );
   }
@@ -386,13 +550,13 @@ window.addEventListener(
   "beforeunload",
   () => {
     if (currentUser) {
-      setUserOnline(false);
+      setUserPresence(false);
     }
   }
 );
 
 
-/* LOAD USERS */
+/* USERS */
 
 function loadUsers() {
   if (unsubscribeUsers) {
@@ -410,7 +574,8 @@ function loadUsers() {
     onSnapshot(
       usersQuery,
       async (snapshot) => {
-        const userPromises = [];
+        const users =
+          [];
 
         snapshot.forEach(
           (userDoc) => {
@@ -421,37 +586,35 @@ function loadUsers() {
               currentUser &&
               user.uid !== currentUser.uid
             ) {
-              userPromises.push(
-                attachUnreadCount(user)
-              );
+              users.push(user);
             }
           }
         );
 
         allUsers =
-          await Promise.all(userPromises);
+          await Promise.all(
+            users.map(
+              (user) =>
+                addUnreadCount(user)
+            )
+          );
 
         displayUsers(allUsers);
       },
       (error) => {
         console.error(
-          "Users loading error:",
+          "Users listener error:",
           error
         );
 
         usersList.innerHTML =
           "<p class='no-user'>Users load nahi ho paaye</p>";
-
-        usersCount.textContent = "0";
       }
     );
 }
 
-
-/* ADD UNREAD COUNT TO USER */
-
-async function attachUnreadCount(user) {
-  if (!currentUser || !user.uid) {
+async function addUnreadCount(user) {
+  if (!currentUser) {
     return {
       ...user,
       unreadCount: 0
@@ -485,12 +648,12 @@ async function attachUnreadCount(user) {
         )
       );
 
-    const unreadSnapshot =
+    const snapshot =
       await getDocs(unreadQuery);
 
     return {
       ...user,
-      unreadCount: unreadSnapshot.size
+      unreadCount: snapshot.size
     };
   } catch (error) {
     console.error(
@@ -505,39 +668,41 @@ async function attachUnreadCount(user) {
   }
 }
 
-
-/* DISPLAY USERS */
-
 function displayUsers(users) {
   const searchText =
     userSearchInput.value
       .trim()
       .toLowerCase();
 
-  usersList.innerHTML = "";
-
   const filteredUsers =
     users.filter(
       (user) => {
         const name =
-          (user.name || "")
+          String(user.name || "")
             .toLowerCase();
 
         const email =
-          (user.email || "")
+          String(user.email || "")
+            .toLowerCase();
+
+        const phone =
+          String(user.phone || "")
             .toLowerCase();
 
         return (
           name.includes(searchText) ||
-          email.includes(searchText)
+          email.includes(searchText) ||
+          phone.includes(searchText)
         );
       }
     );
 
+  usersList.innerHTML = "";
+
   usersCount.textContent =
     filteredUsers.length;
 
-  if (filteredUsers.length === 0) {
+  if (!filteredUsers.length) {
     usersList.innerHTML =
       "<p class='no-user'>No user found</p>";
 
@@ -546,26 +711,26 @@ function displayUsers(users) {
 
   filteredUsers.forEach(
     (user) => {
-      const userElement =
-        document.createElement("div");
-
       const userName =
         user.name ||
         user.email ||
         "User";
 
-      const isOnline =
-        user.isOnline === true;
+      const userElement =
+        document.createElement("div");
 
-      const isSelected =
+      const selected =
         selectedUser &&
         selectedUser.uid === user.uid;
 
-      const unreadCount =
+      const online =
+        user.isOnline === true;
+
+      const unread =
         Number(user.unreadCount || 0);
 
       userElement.className =
-        `user-item${isSelected ? " active" : ""}`;
+        `user-item${selected ? " active" : ""}`;
 
       userElement.innerHTML = `
         <div class="user-avatar">
@@ -580,18 +745,18 @@ function displayUsers(users) {
           </div>
 
           <span class="user-preview">
-            ${isOnline ? "Online" : "Offline"}
+            ${online ? "Online" : "Offline"}
           </span>
         </div>
 
         <div class="user-meta">
           <span
-            class="user-online-dot ${isOnline ? "online" : ""}"
+            class="user-online-dot ${online ? "online" : ""}"
           ></span>
 
           ${
-            unreadCount > 0
-              ? `<span class="unread-badge">${unreadCount}</span>`
+            unread > 0
+              ? `<span class="unread-badge">${unread}</span>`
               : ""
           }
         </div>
@@ -609,9 +774,6 @@ function displayUsers(users) {
   );
 }
 
-
-/* SEARCH */
-
 userSearchInput.addEventListener(
   "input",
   () => {
@@ -620,19 +782,7 @@ userSearchInput.addEventListener(
 );
 
 
-/* CHAT ID */
-
-function getChatId(uid1, uid2) {
-  return [
-    uid1,
-    uid2
-  ]
-    .sort()
-    .join("_");
-}
-
-
-/* CREATE CHAT */
+/* CHAT */
 
 async function ensureChatExists(user) {
   const chatId =
@@ -658,15 +808,13 @@ async function ensureChatExists(user) {
   return chatId;
 }
 
-
-/* OPEN CHAT */
-
 async function openChat(user) {
   if (!currentUser || !user) {
     return;
   }
 
-  selectedUser = user;
+  selectedUser =
+    user;
 
   const userName =
     user.name ||
@@ -677,121 +825,122 @@ async function openChat(user) {
     userName;
 
   chatStatus.textContent =
-    user.isOnline === true
+    user.isOnline
       ? "Online"
       : "Offline";
+
+  chatLastSeen.textContent =
+    formatLastSeen(user.lastSeen);
 
   chatAvatar.textContent =
     getInitial(userName);
 
-  deleteChatBtn.classList.remove(
-    "hidden"
-  );
+  audioCallBtn.disabled = false;
+  videoCallBtn.disabled = false;
+  chatMenuBtn.disabled = false;
 
   typingIndicator.classList.add(
     "hidden"
   );
 
-  messagesElement.innerHTML = "";
+  chatMenu.classList.add(
+    "hidden"
+  );
 
-  if (unsubscribeMessages) {
-    unsubscribeMessages();
-    unsubscribeMessages = null;
-  }
+  moreMenu.classList.add(
+    "hidden"
+  );
 
-  if (unsubscribeSelectedUser) {
-    unsubscribeSelectedUser();
-    unsubscribeSelectedUser = null;
-  }
+  messagesElement.innerHTML =
+    "";
+
+  stopAllChatListeners();
 
   try {
     const chatId =
       await ensureChatExists(user);
 
-    await markMessagesAsRead(
+    await markMessagesRead(
       chatId,
       user.uid
     );
 
-    listenToSelectedUser(user.uid);
-    listenToTyping(user.uid);
-
-    const messagesQuery =
-      query(
-        collection(
-          db,
-          "chats",
-          chatId,
-          "messages"
-        ),
-        orderBy(
-          "createdAt",
-          "asc"
-        )
-      );
-
-    unsubscribeMessages =
-      onSnapshot(
-        messagesQuery,
-        (snapshot) => {
-          messagesElement.innerHTML = "";
-
-          if (snapshot.empty) {
-            messagesElement.innerHTML = `
-              <div class="empty-chat">
-                <div class="empty-icon">👋</div>
-                <h2>Say Hello</h2>
-                <p>Start your first conversation.</p>
-              </div>
-            `;
-
-            return;
-          }
-
-          snapshot.forEach(
-            (messageDoc) => {
-              showMessage(
-                messageDoc.data(),
-                messageDoc.id
-              );
-            }
-          );
-
-          messagesElement.scrollTop =
-            messagesElement.scrollHeight;
-        },
-        (error) => {
-          console.error(
-            "Messages loading error:",
-            error
-          );
-
-          messagesElement.innerHTML =
-            "<p>Messages load nahi ho paaye</p>";
-        }
-      );
+    listenSelectedUser(user.uid);
+    listenTyping(user.uid);
+    listenMessages(chatId);
   } catch (error) {
     console.error(
       "Open chat error:",
       error
     );
 
-    alert(
-      "Chat open nahi ho saki"
-    );
+    messagesElement.innerHTML =
+      "<p>Chat open nahi ho saki</p>";
   }
 }
 
+function listenMessages(chatId) {
+  const messagesQuery =
+    query(
+      collection(
+        db,
+        "chats",
+        chatId,
+        "messages"
+      ),
+      orderBy(
+        "createdAt",
+        "asc"
+      )
+    );
 
-/* SELECTED USER LIVE STATUS */
+  unsubscribeMessages =
+    onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        messagesElement.innerHTML =
+          "";
 
-function listenToSelectedUser(userId) {
-  const userRef =
-    doc(db, "users", userId);
+        if (snapshot.empty) {
+          messagesElement.innerHTML = `
+            <div class="empty-chat">
+              <div class="empty-icon">👋</div>
+              <h2>Say Hello</h2>
+              <p>Start your first conversation.</p>
+            </div>
+          `;
 
+          return;
+        }
+
+        snapshot.forEach(
+          (messageDoc) => {
+            showMessage(
+              messageDoc.data(),
+              messageDoc.id
+            );
+          }
+        );
+
+        messagesElement.scrollTop =
+          messagesElement.scrollHeight;
+      },
+      (error) => {
+        console.error(
+          "Messages listener error:",
+          error
+        );
+
+        messagesElement.innerHTML =
+          "<p>Messages load nahi ho paaye</p>";
+      }
+    );
+}
+
+function listenSelectedUser(userId) {
   unsubscribeSelectedUser =
     onSnapshot(
-      userRef,
+      doc(db, "users", userId),
       (snapshot) => {
         if (!snapshot.exists()) {
           return;
@@ -800,91 +949,238 @@ function listenToSelectedUser(userId) {
         const user =
           snapshot.data();
 
-        if (
-          selectedUser &&
-          selectedUser.uid === userId
-        ) {
-          selectedUser = {
-            ...selectedUser,
-            ...user
-          };
+        selectedUser = {
+          ...selectedUser,
+          ...user
+        };
 
-          chatStatus.textContent =
-            user.isOnline === true
-              ? "Online"
-              : "Offline";
-        }
+        chatStatus.textContent =
+          user.isOnline
+            ? "Online"
+            : "Offline";
+
+        chatLastSeen.textContent =
+          formatLastSeen(user.lastSeen);
       }
     );
 }
 
 
+/* TYPING */
+
+function listenTyping(userId) {
+  if (!currentUser) {
+    return;
+  }
+
+  const typingId =
+    getChatId(
+      currentUser.uid,
+      userId
+    );
+
+  unsubscribeTyping =
+    onSnapshot(
+      doc(db, "typing", typingId),
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          typingIndicator.classList.add(
+            "hidden"
+          );
+
+          return;
+        }
+
+        const data =
+          snapshot.data();
+
+        const typing =
+          data[userId] === true;
+
+        typingIndicator.classList.toggle(
+          "hidden",
+          !typing
+        );
+      }
+    );
+}
+
+function sendTypingStatus(value) {
+  if (!currentUser || !selectedUser) {
+    return;
+  }
+
+  const typingId =
+    getChatId(
+      currentUser.uid,
+      selectedUser.uid
+    );
+
+  setDoc(
+    doc(db, "typing", typingId),
+    {
+      [currentUser.uid]: value,
+      updatedAt: serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  ).catch(
+    (error) => {
+      console.error(
+        "Typing update error:",
+        error
+      );
+    }
+  );
+}
+
+function stopTyping() {
+  clearTimeout(
+    typingTimer
+  );
+
+  if (!isTyping) {
+    return;
+  }
+
+  isTyping =
+    false;
+
+  sendTypingStatus(false);
+}
+
+messageInput.addEventListener(
+  "input",
+  () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    clearTimeout(
+      typingTimer
+    );
+
+    if (!isTyping) {
+      isTyping =
+        true;
+
+      sendTypingStatus(true);
+    }
+
+    typingTimer =
+      setTimeout(
+        stopTyping,
+        1500
+      );
+  }
+);
+
+
+/* SEND MESSAGE */
+
+messageForm.addEventListener(
+  "submit",
+  async (event) => {
+    event.preventDefault();
+
+    const text =
+      messageInput.value.trim();
+
+    if (!text || !selectedUser) {
+      return;
+    }
+
+    try {
+      const chatId =
+        await ensureChatExists(
+          selectedUser
+        );
+
+      await addDoc(
+        collection(
+          db,
+          "chats",
+          chatId,
+          "messages"
+        ),
+        {
+          text,
+          senderId: currentUser.uid,
+          receiverId: selectedUser.uid,
+          createdAt: serverTimestamp(),
+          isRead: false,
+          deleted: false
+        }
+      );
+
+      messageInput.value =
+        "";
+
+      stopTyping();
+
+      await refreshUnreadCounts();
+    } catch (error) {
+      console.error(
+        "Send message error:",
+        error
+      );
+
+      alert(
+        "Message send nahi ho saka"
+      );
+    }
+  }
+);
+
+
 /* DISPLAY MESSAGE */
 
+
 function showMessage(message, messageId) {
-  const isMine =
-    currentUser &&
+  const mine =
     message.senderId === currentUser.uid;
 
-  const messageWrapper =
+  const wrapper =
     document.createElement("div");
 
-  messageWrapper.className =
+  wrapper.className =
     "message-wrapper";
 
-  if (isMine) {
-    messageWrapper.classList.add(
+  if (mine) {
+    wrapper.classList.add(
       "my-message-wrapper"
     );
   }
 
-  const messageElement =
+  const bubble =
     document.createElement("div");
 
-  messageElement.className =
-    "message";
+  bubble.className =
+    `message${mine ? " my-message" : ""}`;
 
-  if (isMine) {
-    messageElement.classList.add(
-      "my-message"
-    );
-  }
-
-  const messageTime =
-    message.createdAt?.toDate
-      ? message.createdAt
-          .toDate()
-          .toLocaleTimeString(
-            [],
-            {
-              hour: "2-digit",
-              minute: "2-digit"
-            }
-          )
-      : "";
-
-  const isDeleted =
+  const deleted =
     message.deleted === true;
 
-  messageElement.innerHTML = `
-    <div class="${isDeleted ? "deleted-message" : ""}">
+  bubble.innerHTML = `
+    <div class="${deleted ? "deleted-message" : ""}">
       ${
-        isDeleted
+        deleted
           ? "This message was deleted"
-          : escapeHtml(message.text || "")
+          : escapeHtml(message.text)
       }
     </div>
 
     <span class="message-time">
-      ${messageTime}
+      ${formatTime(message.createdAt)}
     </span>
   `;
 
-  messageWrapper.appendChild(
-    messageElement
+  wrapper.appendChild(
+    bubble
   );
 
-  if (isMine && !isDeleted) {
+  if (mine && !deleted) {
     const menuButton =
       document.createElement("button");
 
@@ -896,9 +1192,6 @@ function showMessage(message, messageId) {
 
     menuButton.textContent =
       "⋮";
-
-    menuButton.title =
-      "Message options";
 
     const menu =
       document.createElement("div");
@@ -920,19 +1213,17 @@ function showMessage(message, messageId) {
 
     deleteButton.addEventListener(
       "click",
-      async (event) => {
-        event.stopPropagation();
-
-        const confirmed =
+      async () => {
+        const confirmDelete =
           confirm(
             "Kya aap ye message delete karna chahte ho?"
           );
 
-        if (!confirmed) {
+        if (!confirmDelete) {
           return;
         }
 
-        await deleteSingleMessage(
+        await deleteOneMessage(
           messageId
         );
       }
@@ -940,10 +1231,6 @@ function showMessage(message, messageId) {
 
     menu.appendChild(
       deleteButton
-    );
-
-    messageWrapper.appendChild(
-      menu
     );
 
     menuButton.addEventListener(
@@ -954,29 +1241,27 @@ function showMessage(message, messageId) {
         menu.classList.toggle(
           "hidden"
         );
-
-        messageWrapper.classList.toggle(
-          "menu-open"
-        );
       }
     );
 
-    messageWrapper.appendChild(
+    wrapper.appendChild(
       menuButton
+    );
+
+    wrapper.appendChild(
+      menu
     );
   }
 
   messagesElement.appendChild(
-    messageWrapper
+    wrapper
   );
 }
 
 
 /* DELETE ONE MESSAGE */
 
-async function deleteSingleMessage(
-  messageId
-) {
+async function deleteOneMessage(messageId) {
   if (!currentUser || !selectedUser) {
     return;
   }
@@ -1012,75 +1297,15 @@ async function deleteSingleMessage(
     );
 
     alert(
-      "Message delete nahi ho saka. Firestore Rules check karo."
+      "Message delete nahi ho saka"
     );
   }
 }
 
 
-/* SEND MESSAGE */
+/* MARK READ */
 
-messageForm.addEventListener(
-  "submit",
-  async (event) => {
-    event.preventDefault();
-
-    const text =
-      messageInput.value.trim();
-
-    if (!text || !selectedUser) {
-      return;
-    }
-
-    try {
-      const chatId =
-        getChatId(
-          currentUser.uid,
-          selectedUser.uid
-        );
-
-      await ensureChatExists(
-        selectedUser
-      );
-
-      await addDoc(
-        collection(
-          db,
-          "chats",
-          chatId,
-          "messages"
-        ),
-        {
-          text,
-          senderId: currentUser.uid,
-          receiverId: selectedUser.uid,
-          createdAt: serverTimestamp(),
-          isRead: false,
-          deleted: false
-        }
-      );
-
-      messageInput.value = "";
-      messageInput.focus();
-
-      stopTyping();
-    } catch (error) {
-      console.error(
-        "Send message error:",
-        error
-      );
-
-      alert(
-        "Message send nahi ho saka"
-      );
-    }
-  }
-);
-
-
-/* MARK MESSAGES READ */
-
-async function markMessagesAsRead(
+async function markMessagesRead(
   chatId,
   senderId
 ) {
@@ -1088,221 +1313,291 @@ async function markMessagesAsRead(
     return;
   }
 
-  try {
-    const unreadQuery =
-      query(
-        collection(
-          db,
-          "chats",
-          chatId,
-          "messages"
-        ),
-        where(
-          "receiverId",
-          "==",
-          currentUser.uid
-        ),
-        where(
-          "senderId",
-          "==",
-          senderId
-        ),
-        where(
-          "isRead",
-          "==",
-          false
-        )
-      );
-
-    const snapshot =
-      await getDocs(unreadQuery);
-
-    if (snapshot.empty) {
-      return;
-    }
-
-    const batch =
-      writeBatch(db);
-
-    snapshot.forEach(
-      (messageDoc) => {
-        batch.update(
-          messageDoc.ref,
-          {
-            isRead: true,
-            readAt: serverTimestamp()
-          }
-        );
-    });
-
-    await batch.commit();
-
-    refreshUnreadCounts();
-  } catch (error) {
-    console.error(
-      "Read messages error:",
-      error
+  const unreadQuery =
+    query(
+      collection(
+        db,
+        "chats",
+        chatId,
+        "messages"
+      ),
+      where(
+        "receiverId",
+        "==",
+        currentUser.uid
+      ),
+      where(
+        "senderId",
+        "==",
+        senderId
+      ),
+      where(
+        "isRead",
+        "==",
+        false
+      )
     );
+
+  const snapshot =
+    await getDocs(unreadQuery);
+
+  if (snapshot.empty) {
+    return;
   }
+
+  const batch =
+    writeBatch(db);
+
+  snapshot.forEach(
+    (messageDoc) => {
+      batch.update(
+        messageDoc.ref,
+        {
+          isRead: true,
+          readAt: serverTimestamp()
+        }
+      );
+    }
+  );
+
+  await batch.commit();
+
+  await refreshUnreadCounts();
 }
-
-
-/* REFRESH UNREAD COUNTS */
 
 async function refreshUnreadCounts() {
   if (!currentUser) {
     return;
   }
 
-  const refreshedUsers = [];
-
-  for (const user of allUsers) {
-    const updatedUser =
-      await attachUnreadCount(user);
-
-    refreshedUsers.push(
-      updatedUser
-    );
-  }
-
   allUsers =
-    refreshedUsers;
+    await Promise.all(
+      allUsers.map(
+        (user) =>
+          addUnreadCount(user)
+      )
+    );
 
   displayUsers(allUsers);
 }
 
+/* CLEAR CHAT */
 
-/* TYPING INDICATOR */
-
-messageInput.addEventListener(
-  "input",
-  () => {
-    if (!selectedUser || !currentUser) {
-      return;
-    }
-
-    clearTimeout(
-      typingTimer
-    );
-
-    if (!isTyping) {
-      isTyping = true;
-
-      sendTypingStatus(
-        true
-      );
-    }
-
-    typingTimer =
-      setTimeout(
-        () => {
-          stopTyping();
-        },
-        1500
-      );
-  }
-);
-
-
-/* SEND TYPING STATUS */
-
-async function sendTypingStatus(
-  typing
-) {
+async function clearCurrentChat() {
   if (!currentUser || !selectedUser) {
     return;
   }
 
-  const typingId =
-    getChatId(
-      currentUser.uid,
-      selectedUser.uid
+  const confirmClear =
+    confirm(
+      "Kya aap is chat ke saare messages clear karna chahte ho?"
     );
+
+  if (!confirmClear) {
+    return;
+  }
 
   try {
-    await setDoc(
-      doc(
-        db,
-        "typing",
-        typingId
-      ),
-      {
-        [`${currentUser.uid}`]: typing,
-        updatedAt: serverTimestamp()
-      },
-      {
-        merge: true
+    const chatId =
+      getChatId(
+        currentUser.uid,
+        selectedUser.uid
+      );
+
+    const messagesSnapshot =
+      await getDocs(
+        collection(
+          db,
+          "chats",
+          chatId,
+          "messages"
+        )
+      );
+
+    const batch =
+      writeBatch(db);
+
+    messagesSnapshot.forEach(
+      (messageDoc) => {
+        batch.delete(
+          messageDoc.ref
+        );
       }
     );
+
+    await batch.commit();
+
+    messagesElement.innerHTML = `
+      <div class="empty-chat">
+        <div class="empty-icon">👋</div>
+        <h2>Say Hello</h2>
+        <p>Start your first conversation.</p>
+      </div>
+    `;
+
+    await refreshUnreadCounts();
   } catch (error) {
     console.error(
-      "Typing status error:",
+      "Clear chat error:",
       error
     );
+
+    alert(
+      "Chat clear nahi ho saki"
+    );
   }
 }
 
 
-/* STOP TYPING */
+/* MENU */
 
-function stopTyping() {
-  clearTimeout(
-    typingTimer
-  );
+chatMenuBtn.addEventListener(
+  "click",
+  (event) => {
+    event.stopPropagation();
 
-  if (!isTyping) {
-    return;
-  }
+    if (!selectedUser) {
+      return;
+    }
 
-  isTyping = false;
-
-  sendTypingStatus(
-    false
-  );
-}
-
-
-/* LISTEN TYPING STATUS */
-
-function listenToTyping(userId) {
-  if (!currentUser) {
-    return;
-  }
-
-  const typingId =
-    getChatId(
-      currentUser.uid,
-      userId
+    chatMenu.classList.toggle(
+      "hidden"
     );
 
-  onSnapshot(
-    doc(db, "typing", typingId),
-    (snapshot) => {
-      if (!snapshot.exists()) {
-        return;
-      }
+    moreMenu.classList.add(
+      "hidden"
+    );
+  }
+);
 
-      const data =
-        snapshot.data();
+moreMenuBtn.addEventListener(
+  "click",
+  (event) => {
+    event.stopPropagation();
 
-      const otherUserTyping =
-        data[userId] === true;
+    moreMenu.classList.toggle(
+      "hidden"
+    );
+  }
+);
 
-      if (otherUserTyping) {
-        typingIndicator.classList.remove(
-          "hidden"
-        );
-      } else {
-        typingIndicator.classList.add(
-          "hidden"
-        );
-      }
+document.addEventListener(
+  "click",
+  () => {
+    chatMenu.classList.add(
+      "hidden"
+    );
+
+    moreMenu.classList.add(
+      "hidden"
+    );
+  }
+);
+
+newGroupBtn.addEventListener(
+  "click",
+  () => {
+    alert(
+      "New group feature next phase me add hoga."
+    );
+  }
+);
+
+viewContactBtn.addEventListener(
+  "click",
+  () => {
+    if (!selectedUser) {
+      return;
     }
-  );
-}
+
+    alert(
+      `Name: ${selectedUser.name || "User"}
+` +
+      `Email: ${selectedUser.email || "Not available"}
+` +
+      `Phone: ${selectedUser.phone || "Not available"}`
+    );
+  }
+);
+
+chatThemeBtn.addEventListener(
+  "click",
+  () => {
+    document.body.classList.toggle(
+      "dark-chat-theme"
+    );
+  }
+);
+
+reportUserBtn.addEventListener(
+  "click",
+  () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    alert(
+      `${selectedUser.name || "User"} reported.`
+    );
+  }
+);
+
+blockUserBtn.addEventListener(
+  "click",
+  async () => {
+    if (!selectedUser || !currentUser) {
+      return;
+    }
+
+    try {
+      await setDoc(
+        doc(
+          db,
+          "users",
+          currentUser.uid,
+          "blockedUsers",
+          selectedUser.uid
+        ),
+        {
+          uid: selectedUser.uid,
+          name: selectedUser.name || "",
+          createdAt: serverTimestamp()
+        }
+      );
+
+      alert(
+        "User blocked."
+      );
+    } catch (error) {
+      console.error(
+        "Block user error:",
+        error
+      );
+
+      alert(
+        "User block nahi ho saka."
+      );
+    }
+  }
+);
+
+clearChatBtn.addEventListener(
+  "click",
+  async () => {
+    chatMenu.classList.add(
+      "hidden"
+    );
+
+    moreMenu.classList.add(
+      "hidden"
+    );
+
+    await clearCurrentChat();
+  }
+);
 
 
-/* RESET CHAT SCREEN */
+/* RESET */
 
 function resetChatScreen() {
   messagesElement.innerHTML = `
@@ -1319,6 +1614,9 @@ function resetChatScreen() {
   chatStatus.textContent =
     "Choose someone to start chatting";
 
+  chatLastSeen.textContent =
+    "";
+
   chatAvatar.textContent =
     "?";
 
@@ -1326,163 +1624,512 @@ function resetChatScreen() {
     "hidden"
   );
 
-  deleteChatBtn.classList.add(
+  audioCallBtn.disabled = true;
+  videoCallBtn.disabled = true;
+  chatMenuBtn.disabled = true;
+
+  chatMenu.classList.add(
+    "hidden"
+  );
+
+  moreMenu.classList.add(
     "hidden"
   );
 }
 
 
-/* DELETE FULL CHAT */
+/* STOP LISTENERS */
 
-deleteChatBtn.addEventListener(
-  "click",
-  deleteCurrentChat
-);
-
-async function deleteCurrentChat() {
-  if (!currentUser || !selectedUser) {
-    alert(
-      "Pehle chat select karo"
-    );
-
-    return;
+function stopAllChatListeners() {
+  if (unsubscribeMessages) {
+    unsubscribeMessages();
+    unsubscribeMessages = null;
   }
 
-  const confirmed =
-    confirm(
-      "Kya aap is chat ke saare messages delete karna chahte ho?"
-    );
+  if (unsubscribeSelectedUser) {
+    unsubscribeSelectedUser();
+    unsubscribeSelectedUser = null;
+  }
 
-  if (!confirmed) {
+  if (unsubscribeTyping) {
+    unsubscribeTyping();
+    unsubscribeTyping = null;
+  }
+
+  stopTyping();
+}
+
+
+/* CLEANUP */
+
+async function cleanUp() {
+  stopAllChatListeners();
+
+  if (unsubscribeUsers) {
+    unsubscribeUsers();
+    unsubscribeUsers = null;
+  }
+
+  if (unsubscribeIncomingCalls) {
+    unsubscribeIncomingCalls();
+    unsubscribeIncomingCalls = null;
+  }
+
+  await closeCall();
+
+  currentUser =
+    null;
+
+  currentUserData =
+    null;
+
+  selectedUser =
+    null;
+
+  allUsers =
+    [];
+}
+
+
+/* WEBRTC CALLING */
+
+const rtcConfiguration = {
+  iceServers: [
+    {
+      urls: "stun:stun.l.google.com:19302"
+    }
+  ]
+};
+
+async function startCall(type) {
+  if (!currentUser || !selectedUser) {
     return;
   }
 
   try {
-    const chatId =
-      getChatId(
+    activeCallId =
+      getCallId(
         currentUser.uid,
         selectedUser.uid
       );
 
-    const messagesRef =
-      collection(
+    const callRef =
+      doc(
         db,
-        "chats",
-        chatId,
-        "messages"
+        "calls",
+        activeCallId
       );
 
-    const messagesSnapshot =
-      await getDocs(
-        messagesRef
+    peerConnection =
+      new RTCPeerConnection(
+        rtcConfiguration
       );
 
-    const batch =
-      writeBatch(db);
+    localStream =
+      await navigator.mediaDevices.getUserMedia(
+        {
+          audio: true,
+          video: type === "video"
+        }
+      );
 
-    messagesSnapshot.forEach(
-      (messageDoc) => {
-        batch.delete(
-          messageDoc.ref
+    localStream
+      .getTracks()
+      .forEach(
+        (track) => {
+          peerConnection.addTrack(
+            track,
+            localStream
+          );
+        }
+      );
+
+    if (has(localVideo)) {
+      localVideo.srcObject =
+        localStream;
+    }
+
+    peerConnection.onicecandidate =
+      async (event) => {
+        if (!event.candidate) {
+          return;
+        }
+
+        await addDoc(
+          collection(
+            callRef,
+            "callerCandidates"
+          ),
+          event.candidate.toJSON()
         );
+      };
+
+    peerConnection.ontrack =
+      (event) => {
+        if (has(remoteVideo)) {
+          remoteVideo.srcObject =
+            event.streams[0];
+        }
+      };
+
+    const offer =
+      await peerConnection.createOffer();
+
+    await peerConnection.setLocalDescription(
+      offer
+    );
+
+    await setDoc(
+      callRef,
+      {
+        callerId: currentUser.uid,
+        receiverId: selectedUser.uid,
+        type,
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp
+        },
+        status: "ringing",
+        createdAt: serverTimestamp()
       }
     );
 
-    batch.delete(
+    onSnapshot(
+      callRef,
+      async (snapshot) => {
+        const data =
+          snapshot.data();
+
+        if (!data) {
+          return;
+        }
+
+        if (
+          data.answer &&
+          !peerConnection.currentRemoteDescription
+        ) {
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(
+              data.answer
+            )
+          );
+        }
+
+        if (data.status === "ended") {
+          await closeCall();
+        }
+      }
+    );
+
+    showCallModal();
+  } catch (error) {
+    console.error(
+      "Start call error:",
+      error
+    );
+
+    alert(
+      "Call start nahi ho saki. Camera/microphone permission check karo."
+    );
+
+    await closeCall();
+  }
+}
+
+async function acceptCall(callData) {
+  try {
+    activeCallId =
+      callData.id;
+
+    peerConnection =
+      new RTCPeerConnection(
+        rtcConfiguration
+      );
+
+    localStream =
+      await navigator.mediaDevices.getUserMedia(
+        {
+          audio: true,
+          video: callData.type === "video"
+        }
+      );
+
+    localStream
+      .getTracks()
+      .forEach(
+        (track) => {
+          peerConnection.addTrack(
+            track,
+            localStream
+          );
+        }
+      );
+
+    if (has(localVideo)) {
+      localVideo.srcObject =
+        localStream;
+    }
+
+    peerConnection.ontrack =
+      (event) => {
+        if (has(remoteVideo)) {
+          remoteVideo.srcObject =
+            event.streams[0];
+        }
+      };
+
+    const callRef =
       doc(
         db,
-        "chats",
-        chatId
+        "calls",
+        activeCallId
+      );
+
+    peerConnection.onicecandidate =
+      async (event) => {
+        if (!event.candidate) {
+          return;
+        }
+
+        await addDoc(
+          collection(
+            callRef,
+            "calleeCandidates"
+          ),
+          event.candidate.toJSON()
+        );
+      };
+
+    await peerConnection.setRemoteDescription(
+      new RTCSessionDescription(
+        callData.offer
       )
     );
 
-    await batch.commit();
+    const answer =
+      await peerConnection.createAnswer();
 
-    if (unsubscribeMessages) {
-      unsubscribeMessages();
-      unsubscribeMessages = null;
-    }
-
-    selectedUser = null;
-    resetChatScreen();
-
-    alert(
-      "Chat delete ho gayi"
+    await peerConnection.setLocalDescription(
+      answer
     );
+
+    await updateDoc(
+      callRef,
+      {
+        answer: {
+          type: answer.type,
+          sdp: answer.sdp
+        },
+        status: "accepted"
+      }
+    );
+
+    showCallModal();
   } catch (error) {
     console.error(
-      "Delete chat error:",
+      "Accept call error:",
       error
     );
 
     alert(
-      "Chat delete nahi ho saki. Firestore Rules check karo."
+      "Call accept nahi ho saki."
+    );
+
+    await closeCall();
+  }
+}
+
+function listenForIncomingCalls() {
+  if (!currentUser) {
+    return;
+  }
+
+  const callsQuery =
+    query(
+      collection(db, "calls"),
+      where(
+        "receiverId",
+        "==",
+        currentUser.uid
+      ),
+      where(
+        "status",
+        "==",
+        "ringing"
+      )
+    );
+
+  unsubscribeIncomingCalls =
+    onSnapshot(
+      callsQuery,
+      (snapshot) => {
+        snapshot.docChanges()
+          .forEach(
+            (change) => {
+              if (
+                change.type !== "added"
+              ) {
+                return;
+              }
+
+              const callData = {
+                id: change.doc.id,
+                ...change.doc.data()
+              };
+
+              window.pendingCall =
+                callData;
+
+                showCallModal();
+
+                if(has(audioCallPlaceholder)) {
+                  audioCallPlaceholder.textContent =
+                    callData.type === "video"
+                      ? "Incoming video call..."
+                      : "Incoming audio call...";
+                }
+            }
+          );
+      }
+    );
+}
+
+async function closeCall() {
+  if (activeCallId) {
+    try {
+      await updateDoc(
+        doc(
+          db,
+          "calls",
+          activeCallId
+        ),
+        {
+          status: "ended",
+          endedAt: serverTimestamp()
+        }
+      );
+    } catch (error) {
+      console.warn(
+        "Call close update skipped:",
+        error
+      );
+    }
+  }
+
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+
+  if (localStream) {
+    localStream
+      .getTracks()
+      .forEach(
+        (track) => track.stop()
+      );
+
+    localStream = null;
+  }
+
+  if (has(localVideo)) {
+    localVideo.srcObject =
+      null;
+  }
+
+  if (has(remoteVideo)) {
+    remoteVideo.srcObject =
+      null;
+  }
+
+  activeCallId =
+    null;
+
+  hideCallModal();
+}
+
+function showCallModal() {
+  if (has(callModal)) {
+    callModal.classList.remove(
+      "hidden"
     );
   }
 }
 
-
-/* CLEAN USER STATE */
-
-async function cleanUserState() {
-  try {
-    if (unsubscribeMessages) {
-      unsubscribeMessages();
-      unsubscribeMessages = null;
-    }
-
-    if (unsubscribeUsers) {
-      unsubscribeUsers();
-      unsubscribeUsers = null;
-    }
-
-    if (unsubscribeSelectedUser) {
-      unsubscribeSelectedUser();
-      unsubscribeSelectedUser = null;
-    }
-
-    currentUser = null;
-    currentUserData = null;
-    selectedUser = null;
-    allUsers = [];
-  } catch (error) {
-    console.error(
-      "Clean state error:",
-      error
+function hideCallModal() {
+  if (has(callModal)) {
+    callModal.classList.add(
+      "hidden"
     );
   }
 }
 
-
-/* ESCAPE HTML */
-
-function escapeHtml(text) {
-  const div =
-    document.createElement(
-      "div"
-    );
-
-  div.textContent =
-    text;
-
-  return div.innerHTML;
+if (has(audioCallBtn)) {
+  audioCallBtn.addEventListener(
+    "click",
+    () => startCall("audio")
+  );
 }
 
+if (has(videoCallBtn)) {
+  videoCallBtn.addEventListener(
+    "click",
+    () => startCall("video")
+  );
+}
 
-/* INITIAL */
+if (has(endCallBtn)) {
+  endCallBtn.addEventListener(
+    "click",
+    closeCall
+  );
+}
 
-function getInitial(text) {
-  return (
-    text
-      .trim()
-      .charAt(0)
-      .toUpperCase() ||
-    "U"
+if (has(acceptCallBtn)) {
+  acceptCallBtn.addEventListener(
+    "click",
+    async () => {
+      if (!window.pendingCall) {
+        return;
+      }
+
+      const call =
+        window.pendingCall;
+
+      window.pendingCall =
+        null;
+
+      await acceptCall(call);
+    }
+  );
+}
+
+if (has(rejectCallBtn)) {
+  rejectCallBtn.addEventListener(
+    "click",
+    async () => {
+      if (window.pendingCall) {
+        await updateDoc(
+          doc(
+            db,
+            "calls",
+            window.pendingCall.id
+          ),
+          {
+            status: "rejected"
+          }
+        );
+
+        window.pendingCall =
+          null;
+      }
+
+      hideCallModal();
+    }
   );
 }
 
 
-/* FRIENDLY ERRORS */
+/* FRIENDLY AUTH ERROR */
 
 function getFriendlyError(error) {
   switch (error.code) {
